@@ -1,0 +1,9 @@
+stack_name: asip
+image_tag: asip-api:latest
+compose_file: ../../docker-compose.yml
+dockerfile: ../../Dockerfile
+docker_network: asip-net
+internal_port: "3000"
+publish_port: "3003"
+delete_volume: "no"
+delete_image: "yes"

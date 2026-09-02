@@ -1,0 +1,18 @@
+# Remote deploy settings - scripts read this file only (no CLI -- flags).
+# Non-empty override fields replace values from compose_file / dockerfile.
+# Fill ssh with a real value before running; leave placeholder until then.
+
+stack_name: asip
+image_tag: asip-api:latest
+compose_file: ../../docker-compose.yml
+dockerfile: ../../Dockerfile
+docker_network: asip-net
+internal_port: ""
+publish_port: ""
+delete_volume: "no"
+delete_image: "yes"
+build_image_on: "local"  # local = build here and upload; server = build on remote
+
+ssh: "ssh t3 -p 80"
+
+volume_dir: "/home/cloud-admin/docker/asip"

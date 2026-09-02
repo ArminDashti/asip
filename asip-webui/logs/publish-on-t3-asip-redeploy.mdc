@@ -1,0 +1,15 @@
+# Publish on T3 — asip-webui (with asip stack)
+
+- **Timestamp:** 2026-08-12 (~15:12 UTC)
+- **Host:** t3-new (`ssh t3 -p 80`)
+- **Image:** `asip-webui:latest` (local build, SCP + docker load)
+- **Domain:** `https://asip.xaigrok.ir` → backend `asip-webui:80` on `t3-net`
+
+## Result
+
+Redeployed with asip compose project at `/home/cloud-admin/docker/asip`. HTTPS 200; LE CN=`asip.xaigrok.ir` (Let's Encrypt). SoftEther SNI check OK.
+
+## Notes
+
+- API base baked as `https://asip-api.xaigrok.ir/api/v1`
+- See sibling log: `asip-api/logs/publish-on-t3-asip-redeploy.mdc`

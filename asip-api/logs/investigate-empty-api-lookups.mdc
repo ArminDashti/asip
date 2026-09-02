@@ -1,0 +1,29 @@
+# Investigate empty ASN/country API responses
+
+- **Timestamp:** 2026-07-26 ~18:24 (+03:30)
+- **Host:** t3-new (`ssh t3 -p 80`)
+- **URLs checked:** `asip-api.xaigrok.ir`
+
+## Commands executed
+
+- Public curl: `/api/v1/asn/search/15169`, `/api/v1/country/search/US`, `/api/v1/health`
+- `ssh -p 80 t3` — `docker ps`, `docker logs asip-api`, `psql` ASN count, env `SYNC_*`, disk/mem
+
+## Important outputs
+
+- Health: `{"status":"ok","service":"as-ip"}`
+- ASN 15169: `{"error":"not_found","message":"no ASN data found for 15169: not found"}`
+- Country US: `{"items":[],"total":0}`
+- DB: `SELECT COUNT(*) FROM asn` → **0**
+- `sync_state`: no rows (`last_sync_at` never set)
+- Startup log: `sync: next run in 11h53m0s (at 02:00 UTC)`
+- Env: `SYNC_ENABLED=true`, `SYNC_ON_STARTUP=false`, `SYNC_HOUR_UTC=2`
+- Image has only `./as-ip-api` (no `asip` CLI binary)
+
+## Result
+
+API routes work; dataset empty because first sync has not run. Expected until sync completes (scheduled 02:00 UTC) or a one-off sync is triggered.
+
+## Warnings
+
+- Triggering sync now needs API restart with `SYNC_ON_STARTUP=true` (or image rebuild to ship `asip sync`) — heavy git clone + DB import on the small T3 host.

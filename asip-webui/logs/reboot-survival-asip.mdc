@@ -1,0 +1,72 @@
+# ASIP reboot survival (t3)
+
+- **Timestamp:** 2026-07-29
+- **Host:** t3 (`ssh t3 -p 80`)
+
+## Incident
+
+After OS reboot at **05:01 UTC**, browsers showed **"Failed to fetch"** on Your IP / IP pages because `asip-api.xaigrok.ir` had no healthy backend.
+
+| Service | Restart policy | Created | Started after reboot | Survived? |
+|---------|----------------|---------|----------------------|-----------|
+| haproxy | unless-stopped | 2026-07-17 | ~05:03 | Yes (same container) |
+| asip-postgres | unless-stopped | 2026-07-29 05:17 | ~05:18 | Recreated by deploy |
+| asip-api | unless-stopped | 2026-07-29 05:18 | ~05:18 | Recreated by deploy |
+| asip-webui | unless-stopped | 2026-07-29 05:22 | ~05:22 | Recreated by deploy |
+
+HAProxy logs during the gap: `be_asip_api` DOWN → DNS error → connection refused → UP once API returned.
+
+External networks present: `t3-net`, `asip-net`, `asip-webui-net`.
+
+Compose files on host: `/home/cloud-admin/docker/asip`, `/home/cloud-admin/docker/asip-webui`.
+
+## Rules for survival
+
+1. Keep `restart: unless-stopped` on postgres, asip-api, asip-webui, haproxy.
+2. Do **not** run `docker compose down` before host reboot (removes containers; they cannot auto-restart).
+3. Prefer `docker compose up -d` without wiping named containers/volumes.
+4. Ensure Docker is enabled on boot: `systemctl is-enabled docker` → `enabled`.
+5. Networks `t3-net`, `asip-net`, `asip-webui-net` must exist before compose up.
+
+## After OS reboot — verify
+
+```bash
+ssh t3 -p 80
+
+docker ps --filter name=asip --filter name=haproxy --format 'table {{.Names}}\t{{.Status}}'
+docker inspect asip-api asip-webui haproxy --format '{{.Name}} Created={{.Created}} Restart={{.HostConfig.RestartPolicy.Name}}'
+curl -sS -m 8 -o /dev/null -w 'api=%{http_code}\n' https://asip-api.xaigrok.ir/api/v1/health
+curl -sS -m 8 -o /dev/null -w 'ui=%{http_code}\n' https://asip.xaigrok.ir/
+```
+
+Healthy survival: **Created** timestamps stay old; only **Started** updates.
+
+## If asip stack is missing after reboot
+
+Redeploy both stacks with existing scripts (from each repo on your workstation):
+
+```powershell
+# as-ip API + postgres
+.\.armin\docker-scripts\run-on-docker-server.ps1
+
+# asip-webui
+.\.armin\docker-scripts\run-on-docker-server.ps1
+```
+
+On the server, compose dirs are:
+
+- `/home/cloud-admin/docker/asip`
+- `/home/cloud-admin/docker/asip-webui`
+
+Example reconcile without a full image rebuild (if images already exist):
+
+```bash
+cd /home/cloud-admin/docker/asip && docker compose up -d
+cd /home/cloud-admin/docker/asip-webui && docker compose up -d
+```
+
+## UI resilience
+
+asip-webui `asIpClient` retries transient network failures (3 attempts, short backoff) and shows:
+
+> API unreachable — service may still be starting after a server restart.

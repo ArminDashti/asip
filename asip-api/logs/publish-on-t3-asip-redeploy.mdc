@@ -1,0 +1,36 @@
+# Publish on T3 — asip stack redeploy
+
+- **Timestamp:** 2026-08-12 17:56–18:45 (+03:30) / ~14:26–15:12 UTC
+- **Host:** t3-new (`ssh t3 -p 80`, user cloud-admin)
+- **Stack:** asip (`asip-api`, `asip-pgsql`, `asip-webui`) at `/home/cloud-admin/docker/asip`
+- **Domains:** `asip.xaigrok.ir`, `asip-api.xaigrok.ir`
+
+## Commands executed
+
+- Preflight: `hostname`, `free -h`, `df -h /`, `docker ps` (haproxy up), DNS (`getent hosts` → `2.144.27.74`)
+- Attempted `.\.armin\docker-scripts\run-on-docker-server.ps1` (hung after remote `compose down`; took down asip-api/webui/pgsql)
+- Manual recovery:
+  - Local `docker build` → `asip-api:latest`, `asip-webui:latest`
+  - `docker save` + `scp -P 80` → `/tmp/*.tar` on T3
+  - Remote `docker load` + `docker compose -p asip up -d` with empty host publish vars
+- Verify LE PEMs, HTTPS 200, SoftEther SNI still responds
+
+## Important outputs
+
+| Check | Result |
+|-------|--------|
+| `asip.xaigrok.ir` HTTPS | 200, issuer Let's Encrypt YE2 (valid → Oct 25 2026) |
+| `asip-api.xaigrok.ir/api/v1/health` | 200 `{"status":"ok","service":"as-ip"}` |
+| SoftEther `ovpbackup.xaigrok.ir` | cert subject still present (passthrough OK) |
+| Containers | `asip-api`, `asip-pgsql` (healthy), `asip-webui` Up |
+| Renew hook | `asip.xaigrok.ir` + `asip-api.xaigrok.ir` already in `/etc/letsencrypt/renewal-hooks/deploy/haproxy-pem.sh` |
+
+## Result
+
+Published successfully. Images rebuilt locally and loaded on T3; HAProxy routes unchanged; existing Let's Encrypt certs remain live (no re-issue needed). SoftEther path intact.
+
+## Warnings
+
+- First `run-on-docker-server.ps1` hung after `compose down` (likely stuck on remote image rm / subsequent step with no further stdout for ~35+ min). Manual build/upload/up recovered service.
+- Empty `PUBLISH_PORT` / `WEBUI_PUBLISH_PORT` still bound ephemeral host ports (`32772`→3000, `32771`→80) via Compose `${VAR-default}` semantics; traffic is via HAProxy on `t3-net`.
+- SSH MCP unavailable this session; used shell `ssh -p 80 t3`.

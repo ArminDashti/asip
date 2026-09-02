@@ -1,0 +1,539 @@
+From 34cd6062ab06384c184381ef37614aa643681ef2 Mon Sep 17 00:00:00 2001
+From: Cursor Agent <cursoragent@cursor.com>
+Date: Sun, 9 Aug 2026 05:21:30 +0000
+Subject: [PATCH] Add Light/Dark/System theme and expand About page
+
+Persist theme preference in localStorage (default dark), apply resolved
+data-theme before paint, and document Armin Dashti plus the ASIP project.
+---
+ index.html                  |  21 ++++++
+ src/components/AppShell.tsx |  39 ++++++++++-
+ src/hooks/useTheme.ts       |  45 +++++++++++++
+ src/lib/theme.ts            |  49 ++++++++++++++
+ src/pages/AboutPage.tsx     |  47 +++++++++----
+ src/styles/global.css       | 131 +++++++++++++++++++++++++++++++-----
+ 6 files changed, 300 insertions(+), 32 deletions(-)
+ create mode 100644 src/hooks/useTheme.ts
+ create mode 100644 src/lib/theme.ts
+
+diff --git a/index.html b/index.html
+index a200570..962ec78 100644
+--- a/index.html
++++ b/index.html
+@@ -4,6 +4,27 @@
+     <meta charset="UTF-8" />
+     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+     <title>ASIP</title>
++    <script>
++      (function () {
++        var key = 'asip-theme'
++        var preference = 'dark'
++        try {
++          var stored = localStorage.getItem(key)
++          if (stored === 'light' || stored === 'dark' || stored === 'system') {
++            preference = stored
++          }
++        } catch (e) {}
++        var resolved = preference
++        if (preference === 'system') {
++          resolved =
++            window.matchMedia &&
++            window.matchMedia('(prefers-color-scheme: light)').matches
++              ? 'light'
++              : 'dark'
++        }
++        document.documentElement.setAttribute('data-theme', resolved)
++      })()
++    </script>
+     <link rel="preconnect" href="https://fonts.googleapis.com" />
+     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+     <link
+diff --git a/src/components/AppShell.tsx b/src/components/AppShell.tsx
+index cac43fd..507e069 100644
+--- a/src/components/AppShell.tsx
++++ b/src/components/AppShell.tsx
+@@ -1,4 +1,6 @@
+ import type { ReactNode } from 'react'
++import { useTheme } from '../hooks/useTheme'
++import type { ThemePreference } from '../lib/theme'
+ 
+ const NAV_ITEMS = [
+   { href: '/', label: 'Your IP' },
+@@ -7,6 +9,12 @@ const NAV_ITEMS = [
+   { href: '/about', label: 'About me' },
+ ] as const
+ 
++const THEME_OPTIONS: { value: ThemePreference; label: string }[] = [
++  { value: 'light', label: 'Light' },
++  { value: 'dark', label: 'Dark' },
++  { value: 'system', label: 'System' },
++]
++
+ function normalizePathname(pathname: string): string {
+   return pathname.replace(/\/+$/, '') || '/'
+ }
+@@ -31,6 +39,7 @@ function GitHubIcon() {
+ 
+ export function AppShell({ children }: { children: ReactNode }) {
+   const pathname = normalizePathname(window.location.pathname)
++  const { preference, setPreference } = useTheme()
+ 
+   return (
+     <div className="app-shell">
+@@ -50,9 +59,33 @@ export function AppShell({ children }: { children: ReactNode }) {
+             )
+           })}
+         </nav>
+-        <a className="site-logo" href="/">
+-          ASIP
+-        </a>
++        <div className="site-header-end">
++          <div
++            className="theme-toggle"
++            role="group"
++            aria-label="Color theme"
++          >
++            {THEME_OPTIONS.map((option) => {
++              const isActive = preference === option.value
++              return (
++                <button
++                  key={option.value}
++                  type="button"
++                  className={
++                    isActive ? 'theme-toggle-btn is-active' : 'theme-toggle-btn'
++                  }
++                  aria-pressed={isActive}
++                  onClick={() => setPreference(option.value)}
++                >
++                  {option.label}
++                </button>
++              )
++            })}
++          </div>
++          <a className="site-logo" href="/">
++            ASIP
++          </a>
++        </div>
+       </header>
+ 
+       <main className="site-main">{children}</main>
+diff --git a/src/hooks/useTheme.ts b/src/hooks/useTheme.ts
+new file mode 100644
+index 0000000..1714c8e
+--- /dev/null
++++ b/src/hooks/useTheme.ts
+@@ -0,0 +1,45 @@
++import { useEffect, useState } from 'react'
++import {
++  applyResolvedTheme,
++  readThemePreference,
++  resolveTheme,
++  type ThemePreference,
++  writeThemePreference,
++  type ResolvedTheme,
++} from '../lib/theme'
++
++export function useTheme() {
++  const [preference, setPreferenceState] = useState<ThemePreference>(() =>
++    readThemePreference(),
++  )
++  const [resolved, setResolved] = useState<ResolvedTheme>(() =>
++    resolveTheme(readThemePreference()),
++  )
++
++  useEffect(() => {
++    const nextResolved = resolveTheme(preference)
++    setResolved(nextResolved)
++    applyResolvedTheme(nextResolved)
++
++    if (preference !== 'system') {
++      return
++    }
++
++    const media = window.matchMedia('(prefers-color-scheme: light)')
++    const onChange = () => {
++      const systemResolved = resolveTheme('system')
++      setResolved(systemResolved)
++      applyResolvedTheme(systemResolved)
++    }
++
++    media.addEventListener('change', onChange)
++    return () => media.removeEventListener('change', onChange)
++  }, [preference])
++
++  function setPreference(next: ThemePreference) {
++    writeThemePreference(next)
++    setPreferenceState(next)
++  }
++
++  return { preference, resolved, setPreference }
++}
+diff --git a/src/lib/theme.ts b/src/lib/theme.ts
+new file mode 100644
+index 0000000..9f340ce
+--- /dev/null
++++ b/src/lib/theme.ts
+@@ -0,0 +1,49 @@
++export type ThemePreference = 'light' | 'dark' | 'system'
++export type ResolvedTheme = 'light' | 'dark'
++
++export const THEME_STORAGE_KEY = 'asip-theme'
++export const DEFAULT_THEME_PREFERENCE: ThemePreference = 'dark'
++
++export function isThemePreference(value: unknown): value is ThemePreference {
++  return value === 'light' || value === 'dark' || value === 'system'
++}
++
++export function readThemePreference(): ThemePreference {
++  try {
++    const stored = localStorage.getItem(THEME_STORAGE_KEY)
++    if (isThemePreference(stored)) {
++      return stored
++    }
++  } catch {
++    // ignore storage access errors
++  }
++  return DEFAULT_THEME_PREFERENCE
++}
++
++export function writeThemePreference(preference: ThemePreference): void {
++  try {
++    localStorage.setItem(THEME_STORAGE_KEY, preference)
++  } catch {
++    // ignore storage access errors
++  }
++}
++
++export function getSystemTheme(): ResolvedTheme {
++  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
++    return 'dark'
++  }
++  return window.matchMedia('(prefers-color-scheme: light)').matches
++    ? 'light'
++    : 'dark'
++}
++
++export function resolveTheme(preference: ThemePreference): ResolvedTheme {
++  if (preference === 'system') {
++    return getSystemTheme()
++  }
++  return preference
++}
++
++export function applyResolvedTheme(resolved: ResolvedTheme): void {
++  document.documentElement.setAttribute('data-theme', resolved)
++}
+diff --git a/src/pages/AboutPage.tsx b/src/pages/AboutPage.tsx
+index bfd6974..2de22c2 100644
+--- a/src/pages/AboutPage.tsx
++++ b/src/pages/AboutPage.tsx
+@@ -1,20 +1,39 @@
+ export function AboutPage() {
+   return (
+     <div className="home about-page">
+-      <h1 className="about-title">About me</h1>
+-      <p className="about-body">
+-        Armin Dashti builds network and IP tooling at Dashti Technologies. ASIP
+-        helps look up IP, ASN, and DNS information quickly.
+-      </p>
+-      <p className="about-github">
+-        <a
+-          href="https://github.com/ArminDashti"
+-          target="_blank"
+-          rel="noopener noreferrer"
+-        >
+-          github.com/ArminDashti
+-        </a>
+-      </p>
++      <h1 className="about-title">About</h1>
++
++      <section className="about-section" aria-labelledby="about-me-heading">
++        <h2 id="about-me-heading" className="about-heading">
++          About me
++        </h2>
++        <p className="about-body">
++          Armin Dashti builds network and IP tooling at Dashti Technologies. He
++          focuses on practical lookup tools that make internet addressing and
++          routing data easier to inspect.
++        </p>
++        <p className="about-github">
++          <a
++            href="https://github.com/ArminDashti"
++            target="_blank"
++            rel="noopener noreferrer"
++          >
++            github.com/ArminDashti
++          </a>
++        </p>
++      </section>
++
++      <section className="about-section" aria-labelledby="about-project-heading">
++        <h2 id="about-project-heading" className="about-heading">
++          About the project
++        </h2>
++        <p className="about-body">
++          ASIP is a web UI for looking up your caller IP, arbitrary IP
++          addresses, and DNS records. It is backed by the as-ip API, which
++          serves IP, ASN, AS, and country geolocation data from a maintained
++          database.
++        </p>
++      </section>
+     </div>
+   )
+ }
+diff --git a/src/styles/global.css b/src/styles/global.css
+index a22500c..b55d7f3 100644
+--- a/src/styles/global.css
++++ b/src/styles/global.css
+@@ -5,11 +5,38 @@
+   --muted: #5a6874;
+   --accent: #0f6b5c;
+   --error: #9b2c2c;
++  --border: rgba(26, 36, 46, 0.1);
++  --border-strong: rgba(26, 36, 46, 0.18);
++  --surface: rgba(255, 255, 255, 0.72);
++  --surface-soft: rgba(255, 255, 255, 0.45);
++  --surface-header: rgba(255, 255, 255, 0.35);
++  --accent-wash: rgba(15, 107, 92, 0.12);
++  --focus-ring: rgba(15, 107, 92, 0.35);
++  --flag-shadow: rgba(26, 36, 46, 0.12);
++  --on-accent: #ffffff;
+   --field-gap: 0.7rem;
+   --font-display: 'Outfit', 'Segoe UI', sans-serif;
+   --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
+ }
+ 
++[data-theme='dark'] {
++  --bg-top: #0f161c;
++  --bg-bottom: #161e26;
++  --ink: #e7eef4;
++  --muted: #9aa7b3;
++  --accent: #2bb39a;
++  --error: #e07070;
++  --border: rgba(231, 238, 244, 0.12);
++  --border-strong: rgba(231, 238, 244, 0.2);
++  --surface: rgba(255, 255, 255, 0.06);
++  --surface-soft: rgba(255, 255, 255, 0.04);
++  --surface-header: rgba(255, 255, 255, 0.07);
++  --accent-wash: rgba(43, 179, 154, 0.14);
++  --focus-ring: rgba(43, 179, 154, 0.4);
++  --flag-shadow: rgba(0, 0, 0, 0.35);
++  --on-accent: #06221c;
++}
++
+ *,
+ *::before,
+ *::after {
+@@ -27,7 +54,7 @@ body {
+   color: var(--ink);
+   font-family: var(--font-display);
+   background:
+-    radial-gradient(ellipse 80% 50% at 20% 0%, rgba(15, 107, 92, 0.12), transparent 55%),
++    radial-gradient(ellipse 80% 50% at 20% 0%, var(--accent-wash), transparent 55%),
+     linear-gradient(165deg, var(--bg-top), var(--bg-bottom));
+ }
+ 
+@@ -45,7 +72,14 @@ body {
+   justify-content: space-between;
+   gap: 1rem;
+   padding: 0.75rem 1.25rem;
+-  border-bottom: 1px solid rgba(26, 36, 46, 0.1);
++  border-bottom: 1px solid var(--border);
++}
++
++.site-header-end {
++  display: flex;
++  align-items: center;
++  gap: 0.85rem;
++  flex-shrink: 0;
+ }
+ 
+ .site-nav {
+@@ -92,6 +126,51 @@ body {
+   filter: brightness(0.92);
+ }
+ 
++.theme-toggle {
++  display: inline-flex;
++  align-items: stretch;
++  border: 1px solid var(--border-strong);
++  border-radius: 6px;
++  overflow: hidden;
++  background: var(--surface-soft);
++}
++
++.theme-toggle-btn {
++  margin: 0;
++  padding: 0.35rem 0.55rem;
++  border: none;
++  border-right: 1px solid var(--border);
++  background: transparent;
++  color: var(--muted);
++  font-family: var(--font-display);
++  font-size: 0.72rem;
++  font-weight: 600;
++  letter-spacing: 0.04em;
++  text-transform: uppercase;
++  cursor: pointer;
++  min-height: 2.25rem;
++}
++
++.theme-toggle-btn:last-child {
++  border-right: none;
++}
++
++.theme-toggle-btn:hover {
++  color: var(--ink);
++  background: var(--surface);
++}
++
++.theme-toggle-btn.is-active {
++  color: var(--accent);
++  background: var(--accent-wash);
++}
++
++.theme-toggle-btn:focus-visible {
++  outline: 2px solid var(--focus-ring);
++  outline-offset: -2px;
++  z-index: 1;
++}
++
+ .site-main {
+   flex: 1;
+   min-height: 0;
+@@ -107,7 +186,7 @@ body {
+   align-items: center;
+   gap: 0.75rem;
+   padding: 0.65rem 1.25rem 0.8rem;
+-  border-top: 1px solid rgba(26, 36, 46, 0.1);
++  border-top: 1px solid var(--border);
+ }
+ 
+ .site-footer-github {
+@@ -156,9 +235,17 @@ body {
+ }
+ 
+ .about-page {
+-  gap: 0.85rem;
+-  max-width: 32rem;
++  gap: 1.25rem;
++  max-width: 34rem;
+   margin-inline: auto;
++  align-items: stretch;
++  text-align: left;
++}
++
++.about-section {
++  display: flex;
++  flex-direction: column;
++  gap: 0.55rem;
+ }
+ 
+ .about-title {
+@@ -168,6 +255,15 @@ body {
+   color: var(--ink);
+ }
+ 
++.about-heading {
++  margin: 0;
++  font-size: 0.72rem;
++  font-weight: 600;
++  letter-spacing: 0.14em;
++  text-transform: uppercase;
++  color: var(--muted);
++}
++
+ .about-body {
+   margin: 0;
+   color: var(--muted);
+@@ -176,7 +272,7 @@ body {
+ }
+ 
+ .about-github {
+-  margin: 0;
++  margin: 0.15rem 0 0;
+ }
+ 
+ .about-github a {
+@@ -229,16 +325,16 @@ body {
+   min-width: 0;
+   margin: 0;
+   padding: 0.55rem 0.75rem;
+-  border: 1px solid rgba(26, 36, 46, 0.18);
++  border: 1px solid var(--border-strong);
+   border-radius: 6px;
+-  background: rgba(255, 255, 255, 0.72);
++  background: var(--surface);
+   color: var(--ink);
+   font-family: var(--font-mono);
+   font-size: 0.95rem;
+ }
+ 
+ .ip-lookup-input:focus {
+-  outline: 2px solid rgba(15, 107, 92, 0.35);
++  outline: 2px solid var(--focus-ring);
+   outline-offset: 1px;
+   border-color: var(--accent);
+ }
+@@ -253,7 +349,7 @@ body {
+   border: none;
+   border-radius: 6px;
+   background: var(--accent);
+-  color: #fff;
++  color: var(--on-accent);
+   font-family: var(--font-display);
+   font-size: 0.9rem;
+   font-weight: 600;
+@@ -288,7 +384,7 @@ body {
+   width: 2.25rem;
+   line-height: 1.7rem;
+   border-radius: 3px;
+-  box-shadow: 0 1px 0 rgba(26, 36, 46, 0.12);
++  box-shadow: 0 1px 0 var(--flag-shadow);
+ }
+ 
+ .field {
+@@ -357,8 +453,8 @@ body {
+   overflow-x: auto;
+   -webkit-overflow-scrolling: touch;
+   border-radius: 8px;
+-  background: rgba(255, 255, 255, 0.45);
+-  border: 1px solid rgba(26, 36, 46, 0.08);
++  background: var(--surface-soft);
++  border: 1px solid var(--border);
+ }
+ 
+ .dns-grid-table {
+@@ -373,7 +469,7 @@ body {
+ .dns-grid-table th,
+ .dns-grid-table td {
+   padding: 0.55rem 0.7rem;
+-  border-bottom: 1px solid rgba(26, 36, 46, 0.1);
++  border-bottom: 1px solid var(--border);
+   vertical-align: middle;
+   word-break: break-word;
+ }
+@@ -389,7 +485,7 @@ body {
+   letter-spacing: 0.12em;
+   text-transform: uppercase;
+   color: var(--muted);
+-  background: rgba(255, 255, 255, 0.35);
++  background: var(--surface-header);
+   position: sticky;
+   top: 0;
+ }
+@@ -442,6 +538,11 @@ body {
+     gap: 0.15rem 0.65rem;
+   }
+ 
++  .site-header-end {
++    width: 100%;
++    justify-content: space-between;
++  }
++
+   .site-footer {
+     gap: 0.5rem;
+     padding: 0.55rem 1rem 0.7rem;
+-- 
+2.43.0
+

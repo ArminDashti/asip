@@ -1,0 +1,49 @@
+*.exe
+*.EXE
+
+node_modules
+npm-debug.log
+.env
+dist
+coverage
+server/bin
+server/.env
+
+# --- auto: github-commit-push-all-repos ---
+bin/as-ip-api bin/as-ip-sync.exe bin/asip.exe
+bin/as-ip-api.exe
+bin/as-ip-sync.exe
+bin/as-ip-sync.exe bin/asip.exe
+bin/asip.exe
+bin/asip.exe bin/as-ip-api bin/as-ip-api.exe bin/as-ip-sync.exe
+bin/asip.exe bin/as-ip-api bin/as-ip-sync.exe
+bin/asip.exe bin/as-ip-api.exe bin/as-ip-sync.exe
+# --- end auto ---
+# --- auto: large files (>5MB) ---
+bin\as-ip-api
+bin\as-ip-sync.exe
+bin\asip.exe
+
+# auto-managed large files (>5MB)
+
+# === auto-managed large files (>5MB) ===
+
+# BEGIN AUTO-MANAGED LARGE FILES (>5MB)
+bin/as-ip-api
+bin/as-ip-sync.exe
+bin/asip.exe
+# END AUTO-MANAGED LARGE FILES
+
+# === auto-managed large files (github-commit-push-all) ===
+bin/as-ip-api
+bin/as-ip-sync.exe
+bin/asip.exe
+# auto-managed-large-files
+
+# github-commit-push-all: auto-ignore large files (>5MB)
+
+# AUTO-IGNORE-LARGE-FILES (>5MB) ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â managed by github-commit-push-all
+# github-commit-push-all: large files (>5MB) Ã¢â‚¬â€ auto-managed
+
+# auto-managed: files > 5MB
+# large files (>5MB) - do not commit

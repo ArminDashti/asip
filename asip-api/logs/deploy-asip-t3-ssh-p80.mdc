@@ -1,0 +1,44 @@
+# Deploy asip to T3 via ssh -p 80
+
+- **Timestamp:** 2026-07-26 17:24–17:59 (+03:30) / ~13:56–13:59 UTC
+- **Host:** t3-new (`ssh t3 -p 80`, user cloud-admin)
+- **Stack:** asip (`asip-api`, `asip-postgres`) at `/home/cloud-admin/docker/asip`
+
+## Commands executed
+
+- `ssh -o BatchMode=yes -p 80 t3 "hostname; docker ps; ..."` — connectivity / port inventory
+- Updated `.armin/docker-scripts/run-on-docker-server.ps1` for `ssh <alias> -p <port>`, YAML inline comments, TEMP long-path, teardown-before-load
+- Set YAML: `ssh: "ssh t3 -p 80"`, `volume_dir: "/home/cloud-admin/docker/asip"`
+- `.\.armin\docker-scripts\run-on-docker-server.ps1` — build local, upload, compose up
+- Endpoint checks via `docker run --rm --network asip-net curlimages/curl:8.5.0` and host `127.0.0.1:32771`
+
+## Important outputs
+
+- Deploy OK: containers started; network `asip-net` created
+- Host publish (empty `PUBLISH_PORT` → ephemeral): `0.0.0.0:32771->3000/tcp`
+- API log: listening on `:3000`; sync scheduled for 02:00 UTC (`SYNC_ON_STARTUP=false`)
+
+### Endpoint results
+
+| Endpoint | HTTP | Notes |
+|----------|------|-------|
+| `GET /api/v1/health` | 200 | `{"status":"ok","service":"as-ip"}` |
+| `GET /api/v1/docs` | 200 | catalog OK |
+| `GET /api/v1/ip/info` | 404 | no ASN data yet |
+| `GET /api/v1/ip/info/8.8.8.8` | 404 | no ASN data yet |
+| `GET /api/v1/asn/list` | 200 | `items: [], total: 0` |
+| `GET /api/v1/asn/search/15169` | 404 | empty DB |
+| `GET /api/v1/asn/to-as/15169` | 404 | empty DB |
+| `GET /api/v1/as/search/GOOGLE` | 404 | empty DB |
+| `GET /api/v1/country/list` | 200 | `items: [], total: 0` |
+| `GET /api/v1/country/search/US` | 200 | `items: [], total: 0` |
+
+## Result
+
+Deploy succeeded over `ssh t3 -p 80`. All routes respond; lookup/list data empty until sync (expected with `SYNC_ON_STARTUP=false`).
+
+## Warnings
+
+- First deploy attempt failed on Windows short TEMP path (`AC508~1.DAS`); fixed by resolving TEMP to long path
+- Inline YAML comments on `build_image_on` broke parsing; parser now strips `#` comments outside quotes
+- Empty `publish_port` still bound an ephemeral host port (32771) via Compose

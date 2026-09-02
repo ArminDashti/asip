@@ -1,0 +1,32 @@
+# Route asip-api egress via mullvad-1
+
+- **Timestamp:** 2026-07-29 ~08:45–08:50 UTC
+- **Host:** t3-new (`ssh t3 -p 80`)
+- **Stack:** `/home/cloud-admin/docker/asip`
+
+## Changes
+
+1. `docker-compose.yml` (`asip-api`):
+   - Joined external network `openvpn-net` (DNS to `mullvad-1`)
+   - Set `HTTP(S)_PROXY` / `http(s)_proxy` → `http://mullvad-1:8778` (3proxy sidecar `openrouter-proxy` in mullvad-1 netns)
+   - Set `NO_PROXY` for `localhost,127.0.0.1,postgres,asip-postgres`
+2. Recreated `asip-api` on server with updated compose
+
+## Verify
+
+```text
+Networks: asip-net, openvpn-net, t3-net
+Proxy env present on asip-api
+curl --network container:asip-api -x http://mullvad-1:8778 https://am.i.mullvad.net/json
+→ mullvad_exit_ip true, UK Manchester (gb-mnc-wg-003)
+https://asip-api.xaigrok.ir/api/v1/health → 200 ok
+```
+
+## Result
+
+Outbound internet from `asip-api` (git sync, HTTPS) goes through Mullvad via the shared `:8778` proxy. Inbound HAProxy path on `t3-net` and Postgres on `asip-net` unchanged.
+
+## Warnings
+
+- BusyBox `wget` in the image mishandles HTTPS-via-HTTP-proxy (400); `git`/`curl` work.
+- Proxy depends on `mullvad-1` + `openrouter-proxy` staying up (`ensure-openrouter-proxy.sh`).

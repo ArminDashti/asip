@@ -1,0 +1,21 @@
+---
+title: t3 docker request control monitor survey
+timestamp: 2026-07-28
+---
+
+# Task: Survey request control/monitoring on t3 Docker
+
+## Commands
+- ssh t3 hostname / docker ps
+- Inspect HAProxy cfg, reverse-proxy.sh/yml, UFW, openrouter-proxy
+
+## Findings
+- Sole public HTTP(S) front door: haproxy container on :443 (SNI + SSL offload to 127.0.0.1:8443)
+- Routes: lexmora, exar, dogan, asip (+ APIs/livekit) via Host header; SoftEther/ovpbackup passthrough
+- No HAProxy stats page, access log, rate limit, or deny ACLs in live cfg
+- UFW allows 22, 80, 443/tcp+udp, 5201
+- Several containers publish host ports (asip-*, dogan-api, exar-api) bypassing HAProxy if reachable
+- openrouter-proxy (3proxy) exists for outbound proxy, not ingress control
+
+## Result
+Documented current control points and recommended HAProxy-native monitoring/control options.

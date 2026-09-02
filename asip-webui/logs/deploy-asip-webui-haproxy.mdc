@@ -1,0 +1,26 @@
+# Deploy asip-webui + HAProxy asip.xaigrok.ir
+
+- **Timestamp:** 2026-07-27
+- **Host:** t3 (`ssh t3 -p 80` / recovery via `ssh -J irancell -p 22 t3`)
+
+## Actions
+
+1. Deployed `asip-webui` with `.\.armin\docker-scripts\run-on-docker-server.ps1` → container on `t3-net` + `asip-webui-net`
+2. Issued Let's Encrypt cert for `asip.xaigrok.ir` (freed SSH `:80` temporarily; used ProxyJump `:22` so session survived)
+3. Installed PEM + extended renew-hook case for `asip.xaigrok.ir`
+4. Patched live `haproxy.cfg`: SNI + Host → `be_asip_webui` → `asip-webui:80`
+5. Synced `irancell-t3/.../reverse-proxy.sh` with `asip` + `asip-api` routes (and proxy-v2 / forwardfor)
+6. Redeployed `as-ip` with `gin-contrib/cors` + `CORS_ALLOWED_ORIGINS`
+
+## Verify
+
+```text
+https://asip.xaigrok.ir/          → 200 HTML
+https://asip-api.xaigrok.ir/...   → CORS Allow-Origin for https://asip.xaigrok.ir
+LE CN=asip.xaigrok.ir
+```
+
+## Warnings
+
+- Direct `:22` from public internet times out; ACME must use jump (`-J irancell -p 22`) or trap-restore SSH `:80`
+- Do not leave SSH `:80` freed without restore

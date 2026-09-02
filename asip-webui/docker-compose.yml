@@ -1,0 +1,30 @@
+# Host port publishing is optional. Behind HAProxy on t3-net,
+# set PUBLISH_PORT= (empty) so the UI is reached via reverse proxy.
+name: asip
+services:
+  asip-webui:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        VITE_AS_IP_BASE_URL: ${VITE_AS_IP_BASE_URL:-https://asip-api.xaigrok.ir/api/v1}
+    image: ${IMAGE_TAG:-asip-webui:latest}
+    container_name: asip-webui
+    restart: "no"
+    expose:
+      - "${INTERNAL_PORT:-80}"
+    ports:
+      - target: ${INTERNAL_PORT:-80}
+        published: ${PUBLISH_PORT-8082}
+        protocol: tcp
+    networks:
+      - asip-webui-net
+      - t3-net
+
+networks:
+  asip-webui-net:
+    name: ${DOCKER_NETWORK:-asip-webui-net}
+    external: true
+  t3-net:
+    name: t3-net
+    external: true

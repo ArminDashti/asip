@@ -1,0 +1,26 @@
+# Expose asip-api on asip-api.xaigrok.ir
+
+- **Timestamp:** 2026-07-26 ~14:05–14:10 UTC
+- **Host:** t3-new (`ssh t3 -p 80`)
+
+## Changes
+
+1. Let's Encrypt cert for `asip-api.xaigrok.ir` (standalone ACME; briefly freed SSH Port 80)
+2. HAProxy PEM + renew-hook case entry
+3. HAProxy SNI + Host routing → `be_asip_api` → `asip-api:3000`
+4. `docker-compose.yml`: `asip-api` on `asip-net` + `t3-net`
+5. Redeployed stack
+
+## Verify
+
+```text
+curl https://asip-api.xaigrok.ir/api/v1/health
+→ 200 {"status":"ok","service":"as-ip"}
+```
+
+Backend resolved to `172.23.0.10` on `t3-net` after HAProxy reload.
+
+## Warnings
+
+- External SSH Port 22 times out from this network; use `-p 80`
+- Lookups still empty until sync (`SYNC_ON_STARTUP=false`)
