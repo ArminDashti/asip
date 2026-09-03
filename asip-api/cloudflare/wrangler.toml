@@ -1,0 +1,14 @@
+name = "asip-api"
+main = "src/index.ts"
+compatibility_date = "2026-08-31"
+compatibility_flags = ["nodejs_compat"]
+workers_dev = true
+
+[[d1_databases]]
+binding = "DB"
+database_name = "asip"
+database_id = "0bd20123-61ba-494e-ada1-27eb4fdb971a"
+migrations_dir = "migrations"
+
+[vars]
+CORS_ORIGINS = "http://localhost:5173,http://127.0.0.1:5173,https://asip.armindashti.workers.dev"
