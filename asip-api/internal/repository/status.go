@@ -15,15 +15,11 @@ type Status struct {
 func (r *AsRepository) GetStatus(ctx context.Context) (Status, error) {
 	var status Status
 
-	var lastSync sql.NullTime
-	err := r.db.QueryRowContext(ctx, `SELECT last_sync_at FROM sync_state WHERE id = 1`).Scan(&lastSync)
-	if err != nil && err != sql.ErrNoRows {
+	lastSync, err := r.GetLastSync(ctx)
+	if err != nil {
 		return status, err
 	}
-	if lastSync.Valid {
-		syncedAt := lastSync.Time
-		status.LastSync = &syncedAt
-	}
+	status.LastSync = lastSync
 
 	err = r.db.QueryRowContext(ctx, `
 		SELECT COUNT(*) FROM api_request
@@ -42,6 +38,22 @@ func (r *AsRepository) GetStatus(ctx context.Context) (Status, error) {
 	}
 
 	return status, nil
+}
+
+func (r *AsRepository) GetLastSync(ctx context.Context) (*time.Time, error) {
+	var lastSync sql.NullTime
+	err := r.db.QueryRowContext(ctx, `SELECT last_sync_at FROM sync_state WHERE id = 1`).Scan(&lastSync)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, err
+	}
+	if !lastSync.Valid {
+		return nil, nil
+	}
+	syncedAt := lastSync.Time
+	return &syncedAt, nil
 }
 
 func (r *AsRepository) SetLastSync(ctx context.Context, syncedAt time.Time) error {

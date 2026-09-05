@@ -31,15 +31,16 @@ type Config struct {
 	GinMode            string
 	CORSAllowedOrigins []string
 
-	SyncEnabled     bool
-	SyncOnStartup   bool
-	SyncHourUTC     int
-	RepoAsMetadata  string
-	RepoAsIPBlocks  string
-	RepoGeoIPBlocks string
-	URLAsMetadata   string
-	URLAsIPBlocks   string
-	URLGeoIPBlocks  string
+	SyncEnabled      bool
+	SyncOnStartup    bool
+	SyncHourUTC      int
+	SyncIntervalDays int
+	RepoAsMetadata   string
+	RepoAsIPBlocks   string
+	RepoGeoIPBlocks  string
+	URLAsMetadata    string
+	URLAsIPBlocks    string
+	URLGeoIPBlocks   string
 }
 
 func Load() (*Config, error) {
@@ -56,6 +57,14 @@ func Load() (*Config, error) {
 	}
 	if syncHourUTC < 0 || syncHourUTC > 23 {
 		return nil, fmt.Errorf("SYNC_HOUR_UTC must be between 0 and 23")
+	}
+
+	syncIntervalDays, err := strconv.Atoi(getEnv("SYNC_INTERVAL_DAYS", "5"))
+	if err != nil {
+		return nil, fmt.Errorf("invalid SYNC_INTERVAL_DAYS: %w", err)
+	}
+	if syncIntervalDays < 1 {
+		return nil, fmt.Errorf("SYNC_INTERVAL_DAYS must be at least 1")
 	}
 
 	dbPort, err := strconv.Atoi(getEnv("DB_PORT", "5432"))
@@ -78,6 +87,7 @@ func Load() (*Config, error) {
 		SyncEnabled:        getEnvBool("SYNC_ENABLED", true),
 		SyncOnStartup:      getEnvBool("SYNC_ON_STARTUP", false),
 		SyncHourUTC:        syncHourUTC,
+		SyncIntervalDays:   syncIntervalDays,
 		RepoAsMetadata:     getEnv("REPO_AS_METADATA_PATH", `C:\Users\armin\Documents\GitHub\as-metadata`),
 		RepoAsIPBlocks:     getEnv("REPO_AS_IP_BLOCKS_PATH", `C:\Users\armin\Documents\GitHub\as-ip-blocks`),
 		RepoGeoIPBlocks:    getEnv("REPO_GEO_IP_BLOCKS_PATH", `C:\Users\armin\Documents\GitHub\geo-ip-blocks`),

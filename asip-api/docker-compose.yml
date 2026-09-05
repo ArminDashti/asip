@@ -50,6 +50,7 @@ services:
       SYNC_ENABLED: "true"
       SYNC_ON_STARTUP: "false"
       SYNC_HOUR_UTC: "2"
+      SYNC_INTERVAL_DAYS: "5"
       REPO_AS_METADATA_PATH: /data/as-metadata
       REPO_AS_IP_BLOCKS_PATH: /data/as-ip-blocks
       REPO_GEO_IP_BLOCKS_PATH: /data/geo-ip-blocks

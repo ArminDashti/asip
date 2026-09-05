@@ -62,13 +62,15 @@ asip status   # last sync + request counts (today / yesterday)
 asip sync     # one-off data sync
 ```
 
-## Daily data sync
+## Data sync (every 5 days)
 
-The API embeds a scheduler that runs once per day (default 02:00 UTC). It:
+The API embeds a scheduler that runs every **5 days** by default (at `SYNC_HOUR_UTC`, default 02:00 UTC). Each run:
 
 1. `git pull` (or `git clone`) the three ipverse datasets into local paths
-2. **DELETE** all existing rows from import tables
+2. **DELETE** all existing rows from import tables (only the latest IP version is kept)
 3. **INSERT** fresh data from `as-metadata`, `as-ip-blocks`, and `geo-ip-blocks`
+
+Interval is controlled by `SYNC_INTERVAL_DAYS` (default `5`). The next run is scheduled from `sync_state.last_sync_at`.
 
 Run a one-off sync manually:
 
@@ -134,7 +136,7 @@ server/
 │   ├── repository/       # SQL data access
 │   ├── router/           # Gin route registration
 │   ├── service/          # Business logic
-│   └── sync/             # Git pull + DB import + daily scheduler
+│   └── sync/             # Git pull + DB import + 5-day scheduler
 ├── cmd/sync/             # One-off sync CLI
 ├── docker-compose.yml
 ├── Dockerfile
@@ -159,9 +161,10 @@ List and search endpoints for country wrap results in `{ "items": [...], "total"
 | `DB_NAME` | `as_ip` | Database name |
 | `DB_SSLMODE` | `disable` | PostgreSQL SSL mode |
 | `GIN_MODE` | `debug` | Gin mode (`debug` or `release`) |
-| `SYNC_ENABLED` | `true` | Enable daily background sync |
+| `SYNC_ENABLED` | `true` | Enable background data sync |
 | `SYNC_ON_STARTUP` | `false` | Run sync immediately when API starts |
-| `SYNC_HOUR_UTC` | `2` | Hour (0–23) for daily sync in UTC |
+| `SYNC_HOUR_UTC` | `2` | Hour (0–23) for sync runs in UTC |
+| `SYNC_INTERVAL_DAYS` | `5` | Days between full DB refresh (latest IPs only) |
 | `REPO_AS_METADATA_PATH` | (see `.env.example`) | Local clone path for as-metadata |
 | `REPO_AS_IP_BLOCKS_PATH` | (see `.env.example`) | Local clone path for as-ip-blocks |
 | `REPO_GEO_IP_BLOCKS_PATH` | (see `.env.example`) | Local clone path for geo-ip-blocks |

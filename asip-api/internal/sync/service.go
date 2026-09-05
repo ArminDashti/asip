@@ -22,7 +22,7 @@ func NewService(db *sql.DB, cfg *config.Config) *Service {
 
 func (s *Service) Run(ctx context.Context) error {
 	startedAt := time.Now()
-	log.Println("sync: starting daily data sync")
+	log.Println("sync: starting data sync (replace with latest IPs only)")
 
 	repos := []struct {
 		url  string

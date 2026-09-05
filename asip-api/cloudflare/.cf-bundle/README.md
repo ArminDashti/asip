@@ -1,0 +1,1 @@
+This folder contains the built output assets for the worker "asip-api" generated at 2026-09-03T22:02:21.327Z.
