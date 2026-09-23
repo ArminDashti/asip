@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/ArminDashti/as-ip/server/internal/dto"
-	"github.com/ArminDashti/as-ip/server/internal/repository"
 )
 
 const (
@@ -147,29 +146,16 @@ func (s *LookupService) LookupDns(ctx context.Context, domain string) (dto.DnsLo
 
 func (s *LookupService) enrichDnsAddress(ctx context.Context, ip string) dto.DnsAddressInfo {
 	info := dto.DnsAddressInfo{Ip: ip}
-	if s.repository == nil || net.ParseIP(ip).To4() == nil {
+	if s.repository == nil || net.ParseIP(ip) == nil {
 		return info
 	}
 
-	record, err := s.repository.FindByIP(ctx, ip)
-	if err != nil {
-		return info
-	}
-
-	countryName := ""
-	if _, geoCountry, geoErr := s.repository.FindCountryByIP(ctx, ip); geoErr == nil {
-		countryName = geoCountry
-	} else if errors.Is(geoErr, repository.ErrNotFound) && record.CountryName != nil {
-		countryName = *record.CountryName
-	} else if geoErr != nil && !errors.Is(geoErr, repository.ErrNotFound) {
-		return info
-	} else if record.CountryName != nil {
-		countryName = *record.CountryName
-	}
-
-	info.Asn = record.AsnNumber
-	info.As = record.Name
-	info.Country = countryName
+	// Dataset + latest stored attribution only: a DNS answer can carry many
+	// addresses, so this path never triggers a live ASN lookup.
+	attribution := s.resolveIpAttribution(ctx, ip, false)
+	info.Asn = attribution.Asn
+	info.As = attribution.AsName
+	info.Country = attribution.Country
 	return info
 }
 

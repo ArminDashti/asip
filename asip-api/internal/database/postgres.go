@@ -51,6 +51,27 @@ func migrate(db *sql.DB) error {
 	if err != nil {
 		return fmt.Errorf("migrate sync_state: %w", err)
 	}
+
+	// Latest AS/country attribution per IP. Rows are upserted in place, so the
+	// table always holds the newest value and never grows an archive/history.
+	_, err = db.Exec(`CREATE TABLE IF NOT EXISTS ip_attribution (
+		ip           TEXT PRIMARY KEY,
+		asn          INTEGER NOT NULL DEFAULT 0,
+		as_name      TEXT NOT NULL DEFAULT '',
+		country_code TEXT NOT NULL DEFAULT '',
+		country      TEXT NOT NULL DEFAULT '',
+		source       TEXT NOT NULL DEFAULT '',
+		resolved_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+	)`)
+	if err != nil {
+		return fmt.Errorf("migrate ip_attribution: %w", err)
+	}
+
+	_, err = db.Exec(`CREATE INDEX IF NOT EXISTS idx_ip_attribution_resolved_at ON ip_attribution (resolved_at)`)
+	if err != nil {
+		return fmt.Errorf("migrate ip_attribution index: %w", err)
+	}
+
 	return nil
 }
 

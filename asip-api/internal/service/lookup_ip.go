@@ -2,41 +2,32 @@ package service
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net"
 	"strings"
 
 	"github.com/ArminDashti/as-ip/server/internal/dto"
 	"github.com/ArminDashti/as-ip/server/internal/mapper"
-	"github.com/ArminDashti/as-ip/server/internal/repository"
 )
 
+// GetIPInfo resolves the AS/country attribution of an IP address.
+//
+// A valid IP always yields a response: when the imported dataset has no prefix
+// mapping for it, the lookup falls back to the latest stored attribution and
+// then to a live ASN lookup, so AS/Country are still reported. Only malformed
+// or missing input is rejected.
 func (s *LookupService) GetIPInfo(ctx context.Context, ip string) (dto.IpInfoResponse, error) {
 	normalizedIP := strings.TrimSpace(ip)
 	if normalizedIP == "" {
 		return dto.IpInfoResponse{}, fmt.Errorf("ip is required: %w", ErrBadRequest)
 	}
-	if net.ParseIP(normalizedIP) == nil {
+
+	parsed := net.ParseIP(normalizedIP)
+	if parsed == nil {
 		return dto.IpInfoResponse{}, fmt.Errorf("invalid ip address: %w", ErrBadRequest)
 	}
+	normalizedIP = parsed.String()
 
-	record, err := s.repository.FindByIP(ctx, normalizedIP)
-	if err != nil {
-		if errors.Is(err, repository.ErrNotFound) {
-			return dto.IpInfoResponse{}, fmt.Errorf("no ASN mapping found for IPv4 address %s: %w", normalizedIP, ErrNotFound)
-		}
-		return dto.IpInfoResponse{}, err
-	}
-
-	countryName := ""
-	if _, geoCountry, geoErr := s.repository.FindCountryByIP(ctx, normalizedIP); geoErr == nil {
-		countryName = geoCountry
-	} else if !errors.Is(geoErr, repository.ErrNotFound) {
-		return dto.IpInfoResponse{}, geoErr
-	} else if record.CountryName != nil {
-		countryName = *record.CountryName
-	}
-
-	return mapper.ToIpInfoResponse(normalizedIP, record, countryName), nil
+	attribution := s.resolveIpAttribution(ctx, normalizedIP, true)
+	return mapper.ToIpInfoResponse(normalizedIP, attribution), nil
 }

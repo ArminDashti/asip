@@ -95,6 +95,9 @@ export function AppShell({ children }: { children: ReactNode }) {
   return (
     <div className="app-shell">
       <header className="site-header">
+        <a className="site-logo" href={withBase('/')}>
+          ASIP
+        </a>
         <nav className="site-nav" aria-label="Primary">
           {NAV_ITEMS.map((item) => {
             const isActive = pathname === item.href
@@ -120,29 +123,28 @@ export function AppShell({ children }: { children: ReactNode }) {
           >
             {preferenceLabel}
           </button>
-          <a className="site-logo" href={withBase('/')}>
-            ASIP
-          </a>
         </div>
       </header>
 
-      <main className="site-main">{children}</main>
+      <div className="site-content">
+        <main className="site-main">{children}</main>
 
-      <footer className="site-footer">
-        <a
-          className="site-footer-github"
-          href="https://github.com/ArminDashti"
-          target="_blank"
-          rel="noopener noreferrer"
-          aria-label="Armin Dashti on GitHub"
-        >
-          <GitHubIcon />
-        </a>
-        <p className="site-footer-copy">
-          © 2026 Dashti Technologies (Armin Dashti)
-        </p>
-        <span className="site-footer-spacer" aria-hidden="true" />
-      </footer>
+        <footer className="site-footer">
+          <a
+            className="site-footer-github"
+            href="https://github.com/ArminDashti"
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="Armin Dashti on GitHub"
+          >
+            <GitHubIcon />
+          </a>
+          <p className="site-footer-copy">
+            © 2026 Dashti Technologies (Armin Dashti)
+          </p>
+          <span className="site-footer-spacer" aria-hidden="true" />
+        </footer>
+      </div>
     </div>
   )
 }

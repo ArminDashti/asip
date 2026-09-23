@@ -129,3 +129,14 @@ export function buildCountryFlagClassName(countryName: string): string | null {
   }
   return `fi fi-${isoCode}`
 }
+
+/** CSS class for flag-icons from an ISO 3166-1 alpha-2 code (e.g. `US`). */
+export function buildCountryFlagClassNameFromCode(
+  countryCode: string | null | undefined,
+): string | null {
+  const normalized = (countryCode ?? '').trim().toLowerCase()
+  if (!/^[a-z]{2}$/.test(normalized)) {
+    return null
+  }
+  return `fi fi-${normalized}`
+}

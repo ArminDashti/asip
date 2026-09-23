@@ -40,13 +40,16 @@ When no `ip` path parameter is supplied, the server uses the client IP (`ClientI
   "ip": "8.8.8.8",
   "asn": 15169,
   "as": "Google LLC",
-  "country": "United States"
+  "country": "United States",
+  "countryCode": "US"
 }
 ```
 
-**Response 400** — invalid or missing client IP
+A valid IP always returns 200. When the imported dataset has no prefix mapping,
+the lookup falls back to the latest stored attribution and then to a live ASN
+lookup (Team Cymru DNS); unknown fields come back empty instead of failing.
 
-**Response 404** — no ASN mapping for the address
+**Response 400** — invalid or missing client IP
 
 ---
 
@@ -65,13 +68,12 @@ Resolve an IPv4 address to the announcing autonomous system.
   "ip": "8.8.8.8",
   "asn": 15169,
   "as": "Google LLC",
-  "country": "United States"
+  "country": "United States",
+  "countryCode": "US"
 }
 ```
 
 **Response 400** — invalid or missing IP
-
-**Response 404** — no ASN mapping for the address
 
 ---
 

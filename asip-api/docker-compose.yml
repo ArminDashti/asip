@@ -1,11 +1,12 @@
 # Host port publishing is optional. Behind HAProxy on t3-net,
 # set PUBLISH_PORT= (empty) so the API is reached via asip-api.xaigrok.ir.
+# WebUI is reached via https://asip.xaigrok.ir (HAProxy -> asip-webui:80).
 name: asip
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: asip-postgres
-    restart: "no"
+    container_name: asip-pgsql
+    restart: unless-stopped
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
@@ -26,7 +27,7 @@ services:
       dockerfile: Dockerfile
     image: ${IMAGE_TAG:-asip-api:latest}
     container_name: asip-api
-    restart: "no"
+    restart: unless-stopped
     depends_on:
       postgres:
         condition: service_healthy
@@ -57,19 +58,35 @@ services:
       REPO_AS_METADATA_URL: https://github.com/ipverse/as-metadata
       REPO_AS_IP_BLOCKS_URL: https://github.com/ipverse/as-ip-blocks
       REPO_GEO_IP_BLOCKS_URL: https://github.com/ipverse/geo-ip-blocks
-      # Outbound internet via mullvad-1 3proxy (openrouter-proxy sidecar on :8778)
-      HTTP_PROXY: ${HTTP_PROXY:-http://mullvad-1:8778}
-      HTTPS_PROXY: ${HTTPS_PROXY:-http://mullvad-1:8778}
-      http_proxy: ${HTTP_PROXY:-http://mullvad-1:8778}
-      https_proxy: ${HTTPS_PROXY:-http://mullvad-1:8778}
-      NO_PROXY: ${NO_PROXY:-localhost,127.0.0.1,postgres,asip-postgres}
-      no_proxy: ${NO_PROXY:-localhost,127.0.0.1,postgres,asip-postgres}
+      # Outbound internet via the windscribe egress 3proxy sidecar on :8778
+      # (the old mullvad-1 container no longer exists — git sync died with it).
+      HTTP_PROXY: ${HTTP_PROXY:-http://windscribe:8778}
+      HTTPS_PROXY: ${HTTPS_PROXY:-http://windscribe:8778}
+      http_proxy: ${HTTP_PROXY:-http://windscribe:8778}
+      https_proxy: ${HTTPS_PROXY:-http://windscribe:8778}
+      NO_PROXY: ${NO_PROXY:-localhost,127.0.0.1,postgres,asip-pgsql}
+      no_proxy: ${NO_PROXY:-localhost,127.0.0.1,postgres,asip-pgsql}
     volumes:
       - asip-data:/data
     networks:
       - asip-net
       - t3-net
       - openvpn-net
+
+  asip-webui:
+    image: ${WEBUI_IMAGE_TAG:-asip-webui:latest}
+    container_name: asip-webui
+    restart: unless-stopped
+    expose:
+      - "${WEBUI_INTERNAL_PORT:-80}"
+    ports:
+      - target: ${WEBUI_INTERNAL_PORT:-80}
+        published: ${WEBUI_PUBLISH_PORT-8082}
+        protocol: tcp
+    networks:
+      - asip-webui-net
+      - t3-net
+
 
 networks:
   asip-net:
@@ -80,6 +97,9 @@ networks:
     external: true
   openvpn-net:
     name: openvpn-net
+    external: true
+  asip-webui-net:
+    name: ${WEBUI_DOCKER_NETWORK:-asip-webui-net}
     external: true
 
 volumes:

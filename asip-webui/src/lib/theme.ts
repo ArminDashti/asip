@@ -33,7 +33,7 @@ export function getSystemTheme(): Theme {
 }
 
 export function resolveThemePreference(): ThemePreference {
-  return readStoredThemePreference() ?? 'system'
+  return readStoredThemePreference() ?? 'dark'
 }
 
 export function resolveEffectiveTheme(

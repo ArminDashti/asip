@@ -3,6 +3,7 @@ export type IpInfo = {
   asn: number
   as: string
   country: string
+  countryCode?: string
 }
 
 export type DnsAddress = {

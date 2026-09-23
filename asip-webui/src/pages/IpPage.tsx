@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { fetchIpInfoByAddress, type IpInfo } from '../api/asIpClient'
-import { buildCountryFlagClassName } from '../lib/countryFlag'
+import { buildCountryFlagClassName, buildCountryFlagClassNameFromCode } from '../lib/countryFlag'
+import { emptyClass, formatAsn, formatText, isKnownAsn, isKnownText } from '../lib/format'
 
 type LookupState =
   | { status: 'idle' }
@@ -80,7 +81,9 @@ export function IpPage() {
 }
 
 function LookedUpIpSummary({ info }: { info: IpInfo }) {
-  const flagClassName = buildCountryFlagClassName(info.country)
+  const flagClassName =
+    buildCountryFlagClassName(info.country) ??
+    buildCountryFlagClassNameFromCode(info.countryCode)
 
   return (
     <dl className="ip-fields">
@@ -95,15 +98,15 @@ function LookedUpIpSummary({ info }: { info: IpInfo }) {
       </div>
       <div className="field">
         <dt>ASN</dt>
-        <dd>{info.asn}</dd>
+        <dd className={emptyClass(isKnownAsn(info.asn))}>{formatAsn(info.asn)}</dd>
       </div>
       <div className="field">
         <dt>AS</dt>
-        <dd>{info.as}</dd>
+        <dd className={emptyClass(isKnownText(info.as))}>{formatText(info.as)}</dd>
       </div>
       <div className="field">
         <dt>Country</dt>
-        <dd>{info.country}</dd>
+        <dd className={emptyClass(isKnownText(info.country))}>{formatText(info.country)}</dd>
       </div>
     </dl>
   )

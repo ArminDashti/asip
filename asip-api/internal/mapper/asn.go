@@ -66,12 +66,13 @@ func ToAsSummary(record model.AsRecord) dto.AsSummary {
 	}
 }
 
-func ToIpInfoResponse(ip string, record model.AsRecord, countryName string) dto.IpInfoResponse {
+func ToIpInfoResponse(ip string, attribution model.IpAttribution) dto.IpInfoResponse {
 	return dto.IpInfoResponse{
-		Ip:      ip,
-		Asn:     record.AsnNumber,
-		As:      record.Name,
-		Country: countryName,
+		Ip:          ip,
+		Asn:         attribution.Asn,
+		As:          attribution.AsName,
+		Country:     attribution.Country,
+		CountryCode: attribution.CountryCode,
 	}
 }
 
